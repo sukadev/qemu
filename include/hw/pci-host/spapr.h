@@ -138,6 +138,5 @@ void spapr_phb_vfio_reset(DeviceState *qdev);
 /* VFIO EEH hooks */
 int spapr_phb_vfio_eeh_set_option(sPAPRPHBState *sphb,
                                   unsigned int addr, int option);
-int spapr_phb_vfio_eeh_get_state(sPAPRPHBState *sphb, int *state);
 
 #endif /* __HW_SPAPR_PCI_H__ */

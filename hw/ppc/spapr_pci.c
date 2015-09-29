@@ -531,7 +531,7 @@ static void rtas_ibm_read_slot_reset_state2(PowerPCCPU *cpu,
 {
     sPAPRPHBState *sphb;
     uint64_t buid;
-    int state, ret;
+    int ret;
 
     if ((nargs != 3) || (nret != 4 && nret != 5)) {
         goto param_error_exit;
@@ -547,13 +547,13 @@ static void rtas_ibm_read_slot_reset_state2(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    ret = spapr_phb_vfio_eeh_get_state(sphb, &state);
-    rtas_st(rets, 0, ret);
-    if (ret != RTAS_OUT_SUCCESS) {
-        return;
+    ret = vfio_eeh_as_op(&sphb->iommu_as, VFIO_EEH_PE_GET_STATE);
+    if (ret < 0) {
+        goto param_error_exit;
     }
 
-    rtas_st(rets, 1, state);
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
+    rtas_st(rets, 1, ret);
     rtas_st(rets, 2, RTAS_EEH_SUPPORT);
     rtas_st(rets, 3, RTAS_EEH_PE_UNAVAIL_INFO);
     if (nret >= 5) {
