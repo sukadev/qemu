@@ -565,6 +565,48 @@ param_error_exit:
     rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
 }
 
+static void spapr_phb_eeh_clear_dev_msix(PCIBus *bus, PCIDevice *pdev,
+                                         void *opaque)
+{
+    /* Check if the device is VFIO PCI device */
+    if (!object_dynamic_cast(OBJECT(pdev), "vfio-pci")) {
+        return;
+    }
+
+    /*
+     * The MSIx table will be cleaned out by reset. We need
+     * disable it so that it can be reenabled properly. Also,
+     * the cached MSIx table should be cleared as it's not
+     * reflecting the contents in hardware.
+     */
+    if (msix_enabled(pdev)) {
+        uint16_t flags;
+
+        flags = pci_host_config_read_common(pdev,
+                                            pdev->msix_cap + PCI_MSIX_FLAGS,
+                                            pci_config_size(pdev), 2);
+        flags &= ~PCI_MSIX_FLAGS_ENABLE;
+        pci_host_config_write_common(pdev,
+                                     pdev->msix_cap + PCI_MSIX_FLAGS,
+                                     pci_config_size(pdev), flags, 2);
+    }
+
+    msix_reset(pdev);
+}
+
+static void spapr_phb_eeh_clear_bus_msix(PCIBus *bus, void *opaque)
+{
+       pci_for_each_device(bus, pci_bus_num(bus),
+                           spapr_phb_eeh_clear_dev_msix, NULL);
+}
+
+static void spapr_phb_eeh_pre_reset(sPAPRPHBState *sphb)
+{
+       PCIHostState *phb = PCI_HOST_BRIDGE(sphb);
+
+       pci_for_each_bus(phb->bus, spapr_phb_eeh_clear_bus_msix, NULL);
+}
+
 static void rtas_ibm_set_slot_reset(PowerPCCPU *cpu,
                                     sPAPRMachineState *spapr,
                                     uint32_t token, uint32_t nargs,
@@ -574,6 +616,7 @@ static void rtas_ibm_set_slot_reset(PowerPCCPU *cpu,
     sPAPRPHBState *sphb;
     uint32_t option;
     uint64_t buid;
+    uint32_t op;
     int ret;
 
     if ((nargs != 4) || (nret != 1)) {
@@ -591,8 +634,29 @@ static void rtas_ibm_set_slot_reset(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    ret = spapr_phb_vfio_eeh_reset(sphb, option);
-    rtas_st(rets, 0, ret);
+    switch (option) {
+    case RTAS_SLOT_RESET_DEACTIVATE:
+        op = VFIO_EEH_PE_RESET_DEACTIVATE;
+        break;
+    case RTAS_SLOT_RESET_HOT:
+        spapr_phb_eeh_pre_reset(sphb);
+        op = VFIO_EEH_PE_RESET_HOT;
+        break;
+    case RTAS_SLOT_RESET_FUNDAMENTAL:
+        spapr_phb_eeh_pre_reset(sphb);
+        op = VFIO_EEH_PE_RESET_FUNDAMENTAL;
+        break;
+    default:
+        goto param_error_exit;
+    }
+
+    ret = vfio_eeh_as_op(&sphb->iommu_as, op);
+    if (ret < 0) {
+        rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
+        return;
+    }
+
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     return;
 
 param_error_exit:
