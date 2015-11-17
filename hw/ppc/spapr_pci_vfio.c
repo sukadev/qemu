@@ -88,53 +88,6 @@ void spapr_phb_vfio_reset(DeviceState *qdev)
     spapr_phb_vfio_eeh_reenable(SPAPR_PCI_HOST_BRIDGE(qdev));
 }
 
-int spapr_phb_vfio_eeh_set_option(sPAPRPHBState *sphb,
-                                  unsigned int addr, int option)
-{
-    uint32_t op;
-    int ret;
-
-    switch (option) {
-    case RTAS_EEH_DISABLE:
-        op = VFIO_EEH_PE_DISABLE;
-        break;
-    case RTAS_EEH_ENABLE: {
-        PCIHostState *phb;
-        PCIDevice *pdev;
-
-        /*
-         * The EEH functionality is enabled on basis of PCI device,
-         * instead of PE. We need check the validity of the PCI
-         * device address.
-         */
-        phb = PCI_HOST_BRIDGE(sphb);
-        pdev = pci_find_device(phb->bus,
-                               (addr >> 16) & 0xFF, (addr >> 8) & 0xFF);
-        if (!pdev || !object_dynamic_cast(OBJECT(pdev), "vfio-pci")) {
-            return RTAS_OUT_PARAM_ERROR;
-        }
-
-        op = VFIO_EEH_PE_ENABLE;
-        break;
-    }
-    case RTAS_EEH_THAW_IO:
-        op = VFIO_EEH_PE_UNFREEZE_IO;
-        break;
-    case RTAS_EEH_THAW_DMA:
-        op = VFIO_EEH_PE_UNFREEZE_DMA;
-        break;
-    default:
-        return RTAS_OUT_PARAM_ERROR;
-    }
-
-    ret = vfio_eeh_as_op(&sphb->iommu_as, op);
-    if (ret < 0) {
-        return RTAS_OUT_HW_ERROR;
-    }
-
-    return RTAS_OUT_SUCCESS;
-}
-
 static void spapr_phb_vfio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);

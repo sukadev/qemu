@@ -442,6 +442,7 @@ static void rtas_ibm_set_eeh_option(PowerPCCPU *cpu,
     sPAPRPHBState *sphb;
     uint32_t addr, option;
     uint64_t buid;
+    uint32_t op;
     int ret;
 
     if ((nargs != 4) || (nret != 1)) {
@@ -461,8 +462,46 @@ static void rtas_ibm_set_eeh_option(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    ret = spapr_phb_vfio_eeh_set_option(sphb, addr, option);
-    rtas_st(rets, 0, ret);
+    switch (option) {
+    case RTAS_EEH_DISABLE:
+        op = VFIO_EEH_PE_DISABLE;
+        break;
+    case RTAS_EEH_ENABLE: {
+        PCIHostState *phb;
+        PCIDevice *pdev;
+
+        /*
+         * The EEH functionality is enabled on basis of PCI device,
+         * instead of PE. We need check the validity of the PCI
+         * device address.
+         */
+        phb = PCI_HOST_BRIDGE(sphb);
+        pdev = pci_find_device(phb->bus,
+                               (addr >> 16) & 0xFF, (addr >> 8) & 0xFF);
+        if (!pdev || !object_dynamic_cast(OBJECT(pdev), "vfio-pci")) {
+            goto param_error_exit;
+        }
+
+        op = VFIO_EEH_PE_ENABLE;
+        break;
+    }
+    case RTAS_EEH_THAW_IO:
+        op = VFIO_EEH_PE_UNFREEZE_IO;
+        break;
+    case RTAS_EEH_THAW_DMA:
+        op = VFIO_EEH_PE_UNFREEZE_DMA;
+        break;
+    default:
+        goto param_error_exit;
+    }
+
+    ret = vfio_eeh_as_op(&sphb->iommu_as, op);
+    if (ret < 0) {
+        rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
+        return;
+    }
+
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     return;
 
 param_error_exit:
