@@ -1523,13 +1523,24 @@ static int spapr_phb_children_reset(Object *child, void *opaque)
     return 0;
 }
 
+static void spapr_phb_eeh_reenable(sPAPRPHBState *sphb)
+{
+    vfio_eeh_as_op(&sphb->iommu_as, VFIO_EEH_PE_ENABLE);
+}
+
 static void spapr_phb_reset(DeviceState *qdev)
 {
     /* Reset the IOMMU state */
     object_child_foreach(OBJECT(qdev), spapr_phb_children_reset, NULL);
 
     if (spapr_phb_eeh_available(SPAPR_PCI_HOST_BRIDGE(qdev))) {
-        spapr_phb_vfio_reset(qdev);
+        /*
+         * The PE might be in frozen state. To reenable the EEH
+         * functionality on it will clean the frozen state, which
+         * ensures that the contained PCI devices will work properly
+         * after reboot.
+         */
+        spapr_phb_eeh_reenable(SPAPR_PCI_HOST_BRIDGE(qdev));
     }
 }
 

@@ -72,22 +72,6 @@ static void spapr_phb_vfio_finish_realize(sPAPRPHBState *sphb, Error **errp)
                                 spapr_tce_get_iommu(tcet));
 }
 
-static void spapr_phb_vfio_eeh_reenable(sPAPRPHBState *sphb)
-{
-    vfio_eeh_as_op(&sphb->iommu_as, VFIO_EEH_PE_ENABLE);
-}
-
-void spapr_phb_vfio_reset(DeviceState *qdev)
-{
-    /*
-     * The PE might be in frozen state. To reenable the EEH
-     * functionality on it will clean the frozen state, which
-     * ensures that the contained PCI devices will work properly
-     * after reboot.
-     */
-    spapr_phb_vfio_eeh_reenable(SPAPR_PCI_HOST_BRIDGE(qdev));
-}
-
 static void spapr_phb_vfio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
