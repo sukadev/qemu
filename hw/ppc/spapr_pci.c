@@ -41,6 +41,9 @@
 #include "hw/ppc/spapr_drc.h"
 #include "sysemu/device_tree.h"
 
+#include "hw/vfio/vfio.h"
+#include <linux/vfio.h>
+
 /* Copied from the kernel arch/powerpc/platforms/pseries/msi.c */
 #define RTAS_QUERY_FN           0
 #define RTAS_CHANGE_FN          1
@@ -620,8 +623,12 @@ static void rtas_ibm_configure_pe(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    ret = spapr_phb_vfio_eeh_configure(sphb);
-    rtas_st(rets, 0, ret);
+    ret = vfio_eeh_as_op(&sphb->iommu_as, VFIO_EEH_PE_CONFIGURE);
+    if (ret < 0) {
+        goto param_error_exit;
+    }
+
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     return;
 
 param_error_exit:

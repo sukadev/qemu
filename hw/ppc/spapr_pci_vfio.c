@@ -220,18 +220,6 @@ int spapr_phb_vfio_eeh_reset(sPAPRPHBState *sphb, int option)
     return RTAS_OUT_SUCCESS;
 }
 
-int spapr_phb_vfio_eeh_configure(sPAPRPHBState *sphb)
-{
-    int ret;
-
-    ret = vfio_eeh_as_op(&sphb->iommu_as, VFIO_EEH_PE_CONFIGURE);
-    if (ret < 0) {
-        return RTAS_OUT_PARAM_ERROR;
-    }
-
-    return RTAS_OUT_SUCCESS;
-}
-
 static void spapr_phb_vfio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
