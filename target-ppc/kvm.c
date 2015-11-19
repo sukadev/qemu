@@ -1879,7 +1879,9 @@ static uint64_t kvmppc_read_int_cpu_dt(const char *propname)
     }
 
     tmp = g_strdup_printf("%s/%s", buf, propname);
+
     val = kvmppc_read_int_dt(tmp);
+
     g_free(tmp);
 
     return val;
