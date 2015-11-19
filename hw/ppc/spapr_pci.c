@@ -96,9 +96,7 @@ PCIDevice *spapr_pci_find_dev(sPAPRMachineState *spapr, uint64_t buid,
 
 static bool spapr_phb_eeh_available(sPAPRPHBState *sphb)
 {
-    sPAPRPHBClass *spc = SPAPR_PCI_HOST_BRIDGE_GET_CLASS(sphb);
-
-    return spc->eeh_available;
+    return vfio_eeh_as_ok(&sphb->iommu_as);
 }
 
 static uint32_t rtas_pci_cfgaddr(uint32_t arg)
@@ -1672,7 +1670,6 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->cannot_instantiate_with_device_add_yet = false;
     spc->finish_realize = spapr_phb_finish_realize;
-    spc->eeh_available = false;
     hp->plug = spapr_phb_hot_plug_child;
     hp->unplug = spapr_phb_hot_unplug_child;
 }

@@ -49,7 +49,6 @@ struct sPAPRPHBClass {
     PCIHostBridgeClass parent_class;
 
     void (*finish_realize)(sPAPRPHBState *sphb, Error **errp);
-    bool eeh_available;
 };
 
 typedef struct spapr_pci_msi {

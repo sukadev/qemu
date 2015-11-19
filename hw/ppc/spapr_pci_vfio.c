@@ -79,7 +79,6 @@ static void spapr_phb_vfio_class_init(ObjectClass *klass, void *data)
 
     dc->props = spapr_phb_vfio_properties;
     spc->finish_realize = spapr_phb_vfio_finish_realize;
-    spc->eeh_available = true;
 }
 
 static const TypeInfo spapr_phb_vfio_info = {
